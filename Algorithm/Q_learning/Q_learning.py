@@ -18,7 +18,7 @@ gamma = 0.99
 reward_list = []
 render = False
 
-for i in range(100):
+for i in range(10000):
     state = env.reset()
     all_reward = 0
 
@@ -30,6 +30,7 @@ for i in range(100):
         action = np.argmax(Q_table[state, :] + np.random.randn(1, env.action_space.n) * (1 * (i + 1)))
         next_state, reward, done, info = env.step(action)
 
+        reward = reward - 0.01
         #更新Q表
         Q_table[state, action] = Q_table[state, action] + lr * (reward + gamma * np.max(Q_table[next_state, :]) - Q_table[state, action])
 
