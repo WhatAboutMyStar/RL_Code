@@ -4,9 +4,10 @@ from collections import deque
 import gym
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import trange
 
-#保存经验
-buffer = deque(maxlen=100000)
+#保存经验 每局游戏会迭代200次，200 * 局数
+buffer = deque(maxlen=200*500)
 
 #agent
 class Net(torch.nn.Module):
@@ -14,40 +15,42 @@ class Net(torch.nn.Module):
         super(Net, self).__init__()
         self.state_space = env.observation_space.shape[0]
         self.action_space = env.action_space.n
-        self.fc1 = torch.nn.Linear(in_features=self.state_space, out_features=200)
-        self.fc2 = torch.nn.Linear(in_features=200, out_features=self.action_space)
+        self.fc1 = torch.nn.Linear(in_features=self.state_space, out_features=50)
+        self.fc2 = torch.nn.Linear(in_features=50, out_features=self.action_space)
 
 
     def forward(self, state):
         x = self.fc1(state)
-        x = F.softplus(x)
+        x = F.relu(x)
         x = self.fc2(x)
         return x
 
 if __name__ == '__main__':
-    env = gym.make("MountainCar-v0")
+    # env = gym.make("MountainCar-v0")
+    env = gym.make("CartPole-v0")
 
     agent = Net(env)
     agent_target = Net(env)
     agent_target.load_state_dict(agent.state_dict())
 
-    optimizer = torch.optim.SGD(agent.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(agent.parameters(), lr=0.0001)
     loss_fn = torch.nn.MSELoss()
 
     state = env.reset()
 
     batch_size = 128
-    gamma = 0.9
+    gamma = 0.98
     start_learning = 1000
+    epsilon = 0.8
 
     all_reward = 0
     reward_list = []
     loss_curve = []
-    for i in range(200000):
+    for i in trange(200 * 3000):
         #选择一个动作
         if i < start_learning:
             action = env.action_space.sample()
-        elif np.random.rand() < 0.9:
+        elif np.random.rand() < epsilon:
             action = int(agent(torch.Tensor(state.reshape(1, -1))).argmax(1)[0])
         else:
             action = env.action_space.sample()
@@ -93,15 +96,15 @@ if __name__ == '__main__':
             next_action = agent(batch_next_state).argmax(1)
 
             Q_value = agent(batch_state)[range(batch_size), np.array(batch_action, dtype=np.int32)]
-            Q_target = (batch_reward + gamma * agent_target(batch_next_state)[range(batch_size), next_action])
-            loss = loss_fn(Q_value, Q_target)
+            Q_target = (batch_reward + masks * gamma * agent_target(batch_next_state)[range(batch_size), next_action])
+            loss = loss_fn(Q_target, Q_value)
 
             agent.zero_grad()
             loss.backward()
             optimizer.step()
 
             #更新targetNet
-            if i % 1000 == 0:
+            if i % 2000 == 0:
                 agent_target.load_state_dict(agent.state_dict())
 
             loss_curve.append(loss)

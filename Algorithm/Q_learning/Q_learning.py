@@ -18,7 +18,7 @@ gamma = 0.99
 reward_list = []
 render = False
 
-for i in range(10000):
+for i in range(30000):
     state = env.reset()
     all_reward = 0
 
@@ -44,3 +44,16 @@ for i in range(10000):
 print(Q_table)
 plt.scatter(range(len(reward_list)), reward_list)
 plt.show()
+
+#test
+total_reward = 0
+state = env.reset()
+while True:
+    env.render()
+    action = np.argmax(Q_table[state, :])
+    next_state, reward, done, info = env.step(action)
+    total_reward += reward
+    if done:
+        env.render()
+        print(total_reward)
+        break
